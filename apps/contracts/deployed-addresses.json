@@ -1,0 +1,10 @@
+{
+  "ReactiveBettingPool": "0x19Dd500B5950BB9A20A3Bf8DA54F41f6D004A375",
+  "ReactiveSponsorship": "0xAf189D6bD0Ee1d4724847367A9a25a69f9834B6c",
+  "ReactiveMatchTimer": "0xEAB3270FC17A4df2d174D5e8bE8C14344880c509",
+  "deployer": "0x63f151A67dFd6508fCBfb242555AaC3F61E544e4",
+  "houseWallet": "0x63f151A67dFd6508fCBfb242555AaC3F61E544e4",
+  "network": "somniaTestnet",
+  "chainId": 50312,
+  "deployedAt": "2026-03-05T13:59:01.687Z"
+}
