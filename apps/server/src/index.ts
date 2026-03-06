@@ -1,21 +1,33 @@
 import { Server, WebSocketTransport, matchMaker } from "colyseus";
 import { createServer } from "http";
 import express from "express";
-import dotenv from "dotenv";
 import { ArenaRoom } from "./rooms/ArenaRoom";
-
-dotenv.config();
 
 const PORT = parseInt(process.env.PORT || "2567");
 const NODE_ENV = process.env.NODE_ENV || "development";
 
+// Catch unhandled errors to prevent silent crashes
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("UNHANDLED REJECTION:", reason);
+});
+
 async function main() {
+  console.log(`[Boot] Starting server on port ${PORT}...`);
+
   const app = express();
   app.use(express.json());
 
   // Health check endpoint
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", uptime: process.uptime() });
+  });
+
+  // Root endpoint for Render health check
+  app.get("/", (_req, res) => {
+    res.send("Reactivity Arena Server OK");
   });
 
   const server = createServer(app);
@@ -44,11 +56,14 @@ async function main() {
   console.log("║  • arena — 5 AI agents, 50 spectators max   ║");
   console.log("╚══════════════════════════════════════════════╝");
 
-  await matchMaker.onReady;
-
+  // Listen on the port first (so Render's health check passes)
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`\n✅ Reactivity Arena server listening on http://0.0.0.0:${PORT}`);
   });
+
+  // Then wait for matchMaker (this can happen after binding)
+  await matchMaker.onReady;
+  console.log("[Boot] MatchMaker ready");
 }
 
 main().catch((err) => {
