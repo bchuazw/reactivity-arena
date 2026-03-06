@@ -1,22 +1,29 @@
+// Boot diagnostics
+console.log("[Boot] Process starting...");
+console.log("[Boot] Node version:", process.version);
+console.log("[Boot] Platform:", process.platform, process.arch);
+console.log("[Boot] PORT:", process.env.PORT);
+
 import { Server, WebSocketTransport, matchMaker } from "colyseus";
 import { createServer } from "http";
 import express from "express";
 import { ArenaRoom } from "./rooms/ArenaRoom";
+
+console.log("[Boot] All imports loaded OK");
 
 const PORT = parseInt(process.env.PORT || "2567");
 const NODE_ENV = process.env.NODE_ENV || "development";
 
 // Catch unhandled errors to prevent silent crashes
 process.on("uncaughtException", (err) => {
-  console.error("UNCAUGHT EXCEPTION:", err);
+  console.error("[FATAL] Uncaught exception:", err);
 });
 process.on("unhandledRejection", (reason) => {
-  console.error("UNHANDLED REJECTION:", reason);
+  console.error("[FATAL] Unhandled rejection:", reason);
 });
 
 async function main() {
-  console.log(`[Boot] Starting server on port ${PORT}...`);
-
+  console.log("[Boot] Creating express app...");
   const app = express();
   app.use(express.json());
 
@@ -24,21 +31,21 @@ async function main() {
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", uptime: process.uptime() });
   });
-
-  // Root endpoint for Render health check
   app.get("/", (_req, res) => {
     res.send("Reactivity Arena Server OK");
   });
 
+  console.log("[Boot] Creating HTTP server...");
   const server = createServer(app);
 
-  const gameServer = new Server({
-    transport: new WebSocketTransport({ server }),
-  });
+  console.log("[Boot] Creating WebSocketTransport...");
+  const transport = new WebSocketTransport({ server });
 
-  // Register Rooms
-  gameServer.define("arena", ArenaRoom as any)
-    .filterBy(["matchId"]);
+  console.log("[Boot] Creating Colyseus Server...");
+  const gameServer = new Server({ transport });
+
+  console.log("[Boot] Defining arena room...");
+  gameServer.define("arena", ArenaRoom as any).filterBy(["matchId"]);
 
   console.log("╔══════════════════════════════════════════════╗");
   console.log("║       ⚔️  REACTIVITY ARENA — GAME SERVER     ║");
@@ -47,26 +54,25 @@ async function main() {
   console.log(`║  Env:      ${NODE_ENV.padEnd(33)}║`);
   console.log("║  Network:  Somnia Testnet (50312)            ║");
   console.log("╠══════════════════════════════════════════════╣");
-  console.log("║  Contracts:                                  ║");
-  console.log(`║  BettingPool:   ${(process.env.BETTING_POOL_ADDRESS || "").substring(0, 10)}...  ║`);
-  console.log(`║  Sponsorship:   ${(process.env.SPONSORSHIP_ADDRESS || "").substring(0, 10)}...  ║`);
-  console.log(`║  MatchTimer:    ${(process.env.MATCH_TIMER_ADDRESS || "").substring(0, 10)}...  ║`);
-  console.log("╠══════════════════════════════════════════════╣");
   console.log("║  Rooms:                                      ║");
   console.log("║  • arena — 5 AI agents, 50 spectators max   ║");
   console.log("╚══════════════════════════════════════════════╝");
 
-  // Listen on the port first (so Render's health check passes)
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`\n✅ Reactivity Arena server listening on http://0.0.0.0:${PORT}`);
+  console.log("[Boot] Binding to port...");
+  await new Promise<void>((resolve, reject) => {
+    server.on("error", reject);
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`[Boot] ✅ Server listening on http://0.0.0.0:${PORT}`);
+      resolve();
+    });
   });
 
-  // Then wait for matchMaker (this can happen after binding)
+  console.log("[Boot] Waiting for matchMaker...");
   await matchMaker.onReady;
-  console.log("[Boot] MatchMaker ready");
+  console.log("[Boot] ✅ MatchMaker ready — server fully operational");
 }
 
 main().catch((err) => {
-  console.error("❌ Failed to start server:", err);
+  console.error("[FATAL] Server failed to start:", err);
   process.exit(1);
 });
