@@ -1,7 +1,52 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client, Room } from 'colyseus.js';
 
-// ─── Types matching the server's ArenaState schema ───────────────
+export interface StatusEffectData {
+  type: string;
+  turnsRemaining: number;
+  magnitude: number;
+}
+
+export interface InventoryItemData {
+  type: string;
+  consumed: boolean;
+}
+
+export interface TileData {
+  position: { x: number; y: number };
+  terrain: string;
+  theme: string;
+  elevation: number;
+  blocksMovement: boolean;
+  providesCover: boolean;
+  concealment: boolean;
+  movementCost: number;
+  vulnerable: boolean;
+  healing: boolean;
+  chokepoint: boolean;
+}
+
+export interface DestructibleData {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  hp: number;
+  maxHp: number;
+  blocksMovement: boolean;
+  providesCover: boolean;
+  explosive: boolean;
+  blastRadius: number;
+  damage: number;
+}
+
+export interface ChestData {
+  id: string;
+  position: { x: number; y: number };
+  opened: boolean;
+  itemType: string;
+  autoEquip: boolean;
+}
+
 export interface AgentData {
   id: string;
   name: string;
@@ -14,6 +59,10 @@ export interface AgentData {
   speed: number;
   ammo: number;
   maxAmmo: number;
+  attackRange: number;
+  bonusRange: number;
+  actionsPerTurn: number;
+  temporaryHp: number;
   position: { x: number; y: number };
   isAlive: boolean;
   isDefending: boolean;
@@ -21,10 +70,21 @@ export interface AgentData {
   shieldTurns: number;
   damageBoostTurns: number;
   damageBoostMultiplier: number;
+  speedBoostTurns: number;
+  revealTurns: number;
+  smokeTurns: number;
+  disabledTurns: number;
+  reviveAvailable: boolean;
+  barrierAvailable: boolean;
+  barrierCooldown: number;
+  inspireTurns: number;
+  protectedByTitanTurns: number;
   damageDealt: number;
   damageTaken: number;
   kills: number;
   itemsReceived: number;
+  inventory: InventoryItemData[];
+  statusEffects: StatusEffectData[];
 }
 
 export interface ActionLogEntry {
@@ -44,7 +104,13 @@ export interface GameState {
   maxTurns: number;
   currentAgentId: string;
   turnDeadline: number;
+  width: number;
+  height: number;
+  mapTheme: string;
   agents: Map<string, AgentData>;
+  tiles: TileData[];
+  destructibles: DestructibleData[];
+  chests: ChestData[];
   turnOrder: string[];
   actionLog: ActionLogEntry[];
   spectatorCount: number;
@@ -72,7 +138,6 @@ export function useGameServer() {
       roomRef.current = room;
       setConnected(true);
 
-      // Listen to state changes
       room.onStateChange((state: any) => {
         const agents = new Map<string, AgentData>();
         if (state.agents) {
@@ -89,6 +154,10 @@ export function useGameServer() {
               speed: agent.speed,
               ammo: agent.ammo,
               maxAmmo: agent.maxAmmo,
+              attackRange: agent.attackRange,
+              bonusRange: agent.bonusRange,
+              actionsPerTurn: agent.actionsPerTurn,
+              temporaryHp: agent.temporaryHp,
               position: { x: agent.position?.x ?? 0, y: agent.position?.y ?? 0 },
               isAlive: agent.isAlive,
               isDefending: agent.isDefending,
@@ -96,10 +165,21 @@ export function useGameServer() {
               shieldTurns: agent.shieldTurns,
               damageBoostTurns: agent.damageBoostTurns,
               damageBoostMultiplier: agent.damageBoostMultiplier,
+              speedBoostTurns: agent.speedBoostTurns,
+              revealTurns: agent.revealTurns,
+              smokeTurns: agent.smokeTurns,
+              disabledTurns: agent.disabledTurns,
+              reviveAvailable: agent.reviveAvailable,
+              barrierAvailable: agent.barrierAvailable,
+              barrierCooldown: agent.barrierCooldown,
+              inspireTurns: agent.inspireTurns,
+              protectedByTitanTurns: agent.protectedByTitanTurns,
               damageDealt: agent.damageDealt,
               damageTaken: agent.damageTaken,
               kills: agent.kills,
               itemsReceived: agent.itemsReceived,
+              inventory: agent.inventory ? Array.from(agent.inventory).map((item: any) => ({ type: item.type, consumed: item.consumed })) : [],
+              statusEffects: agent.statusEffects ? Array.from(agent.statusEffects).map((effect: any) => ({ type: effect.type, turnsRemaining: effect.turnsRemaining, magnitude: effect.magnitude })) : [],
             });
           });
         }
@@ -124,6 +204,47 @@ export function useGameServer() {
           state.turnOrder.forEach((id: string) => turnOrder.push(id));
         }
 
+        const tiles: TileData[] = state.tiles
+          ? Array.from(state.tiles).map((tile: any) => ({
+              position: { x: tile.position?.x ?? 0, y: tile.position?.y ?? 0 },
+              terrain: tile.terrain,
+              theme: tile.theme,
+              elevation: tile.elevation,
+              blocksMovement: tile.blocksMovement,
+              providesCover: tile.providesCover,
+              concealment: tile.concealment,
+              movementCost: tile.movementCost,
+              vulnerable: tile.vulnerable,
+              healing: tile.healing,
+              chokepoint: tile.chokepoint,
+            }))
+          : [];
+
+        const destructibles: DestructibleData[] = state.destructibles
+          ? Array.from(state.destructibles).map((prop: any) => ({
+              id: prop.id,
+              type: prop.type,
+              position: { x: prop.position?.x ?? 0, y: prop.position?.y ?? 0 },
+              hp: prop.hp,
+              maxHp: prop.maxHp,
+              blocksMovement: prop.blocksMovement,
+              providesCover: prop.providesCover,
+              explosive: prop.explosive,
+              blastRadius: prop.blastRadius,
+              damage: prop.damage,
+            }))
+          : [];
+
+        const chests: ChestData[] = state.chests
+          ? Array.from(state.chests).map((chest: any) => ({
+              id: chest.id,
+              position: { x: chest.position?.x ?? 0, y: chest.position?.y ?? 0 },
+              opened: chest.opened,
+              itemType: chest.itemType,
+              autoEquip: chest.autoEquip,
+            }))
+          : [];
+
         setGameState({
           matchId: state.matchId || '',
           phase: state.phase || 'lobby',
@@ -131,7 +252,13 @@ export function useGameServer() {
           maxTurns: state.maxTurns || 100,
           currentAgentId: state.currentAgentId || '',
           turnDeadline: state.turnDeadline || 0,
+          width: state.width || 10,
+          height: state.height || 10,
+          mapTheme: state.mapTheme || 'cyber_ruins',
           agents,
+          tiles,
+          destructibles,
+          chests,
           turnOrder,
           actionLog,
           spectatorCount: state.spectatorCount || 0,
