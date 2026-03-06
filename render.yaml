@@ -1,0 +1,39 @@
+# Render Blueprint for Reactivity Arena
+services:
+  # Game Server
+  - type: web
+    name: reactivity-arena-server
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    rootDir: apps/server
+    envVars:
+      - key: BETTING_POOL_ADDRESS
+        value: 0x19Dd500B5950BB9A20A3Bf8DA54F41f6D004A375
+      - key: SPONSORSHIP_ADDRESS
+        value: 0xAf189D6bD0Ee1d4724847367A9a25a69f9834B6c
+      - key: MATCH_TIMER_ADDRESS
+        value: 0xEAB3270FC17A4df2d174D5e8bE8C14344880c509
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: MAX_SPECTATORS
+        value: 50
+      - key: TURN_TIMEOUT_MS
+        value: 30000
+    healthCheckPath: /health
+
+  # Frontend
+  - type: static
+    name: reactivity-arena
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    rootDir: apps/web
+    envVars:
+      - key: NODE_ENV
+        value: production
