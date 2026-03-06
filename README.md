@@ -16,6 +16,12 @@ Built for the [Somnia Reactivity Hackathon](https://www.somnia.network/) — a f
 
 ## 📊 Current Progress
 
+- ✅ Map redesigned with tactical terrain
+- ✅ 5 character classes simplified to uniform agents
+- ✅ Chest/item system added
+- ✅ Graphics redesigned (Metal Slug Tactics style)
+- ✅ Deployed on Render
+
 | Phase | Status | Description |
 |-------|--------|-------------|
 | **Phase 1** | ✅ DEPLOYED & VERIFIED | Smart Contracts on Somnia Testnet |
@@ -79,40 +85,30 @@ React + Three.js spectator interface with:
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - Node.js 18+
-- npm or yarn
+- pnpm (`npm install -g pnpm`)
 
-### Game Server
-
+### 1. Start Game Server
 ```bash
 cd apps/server
-npm install
-npm run build
-npm start
-# Server runs on http://localhost:2567
+pnpm install
+pnpm build
+pnpm start
+# Server runs on ws://localhost:2567
 ```
 
-### Smart Contracts
-
-Contracts are already deployed. To redeploy:
-
-```bash
-cd apps/contracts
-cp .env.example .env
-# Edit .env with your private key and RPC URL
-npm install
-npx hardhat deploy --network somniaTestnet
-```
-
-### Frontend
-
+### 2. Start Frontend
 ```bash
 cd apps/web
-npm install
-npm run dev
+pnpm install
+pnpm dev
 # Opens on http://localhost:5173
 ```
+
+### 3. Connect Wallet
+- Wallet must have Somnia Testnet configured
+- Get test tokens from [Somnia Faucet](https://docs.somnia.network/developer/faucet)
+- Network: RPC `https://dream-rpc.somnia.network`, Chain ID `50312`
 
 ### Contract Addresses (Somnia Testnet — Chain ID: 50312)
 
@@ -175,34 +171,6 @@ reactivity-arena/
 4. **Sponsor Power-Ups** → Spectators send items via `ReactiveSponsorship`; delivered instantly via reactive events
 5. **Match Resolves** → Winner determined, `ReactiveBettingPool` auto-distributes payouts
 
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+
-- pnpm (`npm install -g pnpm`)
-
-### 1. Start Game Server
-```bash
-cd apps/server
-pnpm install
-pnpm build
-pnpm start
-# Server runs on ws://localhost:2567
-```
-
-### 2. Start Frontend
-```bash
-cd apps/web
-pnpm install
-pnpm dev
-# Opens on http://localhost:5173
-```
-
-### 3. Connect Wallet
-- Wallet must have Somnia Testnet configured
-- Get test tokens from [Somnia Faucet](https://docs.somnia.network/developer/faucet)
-- Network: RPC `https://dream-rpc.somnia.network`, Chain ID `50312`
-
 ## 📦 Build for Production
 
 ```bash
@@ -215,6 +183,39 @@ Output in `dist/` folder (6.6MB).
 ## 📖 Demo Guide
 
 See [DEMO.md](DEMO.md) for full demo script and testing checklist.
+
+## Test Checklist
+
+### Visual
+- [ ] 3D arena loads with Metal Slug Tactics-inspired visuals
+- [ ] Environment has props (crates, vehicles, debris)
+- [ ] 5 distinct character models visible
+- [ ] Health bars above agents
+- [ ] Terrain looks varied (not flat colors)
+
+### Wallet & Network
+- [ ] Connect wallet button works
+- [ ] Somnia Testnet added (Chain ID: 50312, RPC: https://dream-rpc.somnia.network)
+- [ ] Test STT tokens received from faucet
+
+### Game Flow
+- [ ] Place bet on agent
+- [ ] Watch agents move and fight
+- [ ] Sponsor item to agent
+- [ ] Combat log shows actions
+- [ ] Match resolves with winner
+
+### Blockchain
+- [ ] Betting transaction confirms
+- [ ] Sponsorship transaction confirms
+- [ ] Events received from contracts
+
+## Known Issues / TODO
+- [ ] Sound effects for combat
+- [ ] More character animations
+- [ ] Mobile responsiveness
+- [ ] Advanced AI behaviors
+- [ ] Tournament bracket system
 
 ## 📜 License
 
