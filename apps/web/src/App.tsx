@@ -70,7 +70,7 @@ const DEMO_TILES: TileData[] = Array.from({ length: 100 }, (_, index) => {
     theme: 'cyber_ruins',
     elevation: terrain === 'elevation' ? 2 : 0,
     blocksMovement: false,
-    providesCover: terrain === 'cover',
+    providesCover: false,
     concealment: terrain === 'bush',
     movementCost: terrain === 'water' ? 2 : 1,
     vulnerable: terrain === 'water',
@@ -190,9 +190,9 @@ function App() {
           </div>
 
           {activeTab === 'bet' ? (
-            <BettingPanel agents={Array.from(agents.values())} matchId={matchId} walletConnected={isConnected} />
+            <BettingPanel agents={agents} matchId={matchId} />
           ) : (
-            <SponsorshipPanel agents={Array.from(agents.values())} matchId={matchId} walletConnected={isConnected} />
+            <SponsorshipPanel agents={agents} matchId={matchId} />
           )}
 
           <div className="stats-panel">

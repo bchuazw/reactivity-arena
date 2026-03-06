@@ -1,4 +1,5 @@
 import config, { listen } from "@colyseus/tools";
+import { Server } from "colyseus";
 import dotenv from "dotenv";
 import { ArenaRoom } from "./rooms/ArenaRoom";
 
@@ -10,7 +11,7 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 const appConfig = config({
   displayLogs: false,
 
-  initializeGameServer: (gameServer) => {
+  initializeGameServer: (gameServer: Server) => {
     // ─── Register Rooms ──────────────────────────────────────────
     gameServer.define("arena", ArenaRoom as any)
       .filterBy(["matchId"]);
@@ -37,7 +38,7 @@ const appConfig = config({
 
 listen(appConfig, PORT).then(() => {
   console.log(`\n✅ Reactivity Arena server listening on http://localhost:${PORT}`);
-}).catch((err) => {
+}).catch((err: Error) => {
   console.error("❌ Failed to start server:", err);
   process.exit(1);
 });

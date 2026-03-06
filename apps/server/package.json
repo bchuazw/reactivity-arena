@@ -15,6 +15,7 @@
   "dependencies": {
     "@colyseus/monitor": "^0.17.7",
     "@colyseus/schema": "^4.0.16",
+    "@colyseus/tools": "^0.17.19",
     "colyseus": "^0.17.8",
     "dotenv": "^17.3.1",
     "ethers": "^6.16.0",

@@ -195,7 +195,7 @@ export class ArenaRoom extends Room {
       this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, agent.id, heal, `🩺 ${agent.name} regenerates ${heal} HP in a med station.`);
     }
 
-    if (tile?.elevation > 0) {
+    if ((tile?.elevation ?? 0) > 0) {
       agent.bonusRange = 1;
     } else {
       agent.bonusRange = 0;
