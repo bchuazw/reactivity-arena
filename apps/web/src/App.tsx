@@ -9,16 +9,15 @@ import { useGameServer, type AgentData, type ActionLogEntry, type TileData, type
 const baseAgent = (overrides: Partial<AgentData>): AgentData => ({
   id: 'agent-demo',
   name: 'Demo Agent',
-  archetype: 'vanguard',
   walletAddress: '0x0000000000000000000000000000000000000000',
   hp: 100,
   maxHp: 100,
   attack: 12,
-  defense: 6,
+  defense: 8,
   speed: 5,
   ammo: 20,
   maxAmmo: 20,
-  attackRange: 3,
+  attackRange: 2,
   bonusRange: 0,
   actionsPerTurn: 2,
   temporaryHp: 0,
@@ -33,11 +32,6 @@ const baseAgent = (overrides: Partial<AgentData>): AgentData => ({
   revealTurns: 0,
   smokeTurns: 0,
   disabledTurns: 0,
-  reviveAvailable: true,
-  barrierAvailable: true,
-  barrierCooldown: 0,
-  inspireTurns: 0,
-  protectedByTitanTurns: 0,
   damageDealt: 0,
   damageTaken: 0,
   kills: 0,
@@ -92,17 +86,17 @@ const DEMO_DESTRUCTIBLES: DestructibleData[] = [
 ];
 
 const DEMO_ACTION_LOG: ActionLogEntry[] = [
-  { turn: 9, agentId: 'agent-ranger', action: 'attack', targetId: 'agent-saboteur', damage: 14, description: '🎯 Skyline takes a rooftop shot into Glitch.', timestamp: Date.now() - 8000 },
-  { turn: 8, agentId: 'agent-medic', action: 'ability', targetId: 'agent-vanguard', damage: 0, description: '💚 Patchwire drops heal burst and smoke on the bridge lane.', timestamp: Date.now() - 12000 },
-  { turn: 8, agentId: 'agent-saboteur', action: 'open_chest', targetId: 'demo-chest-2', damage: 0, description: '📦 Glitch opens a chest and grabs a Recon Drone.', timestamp: Date.now() - 15000 },
+  { turn: 9, agentId: 'agent-2', action: 'attack', targetId: 'agent-4', damage: 14, description: '⚔️ Agent Two hits Agent Four from the bridge lane.', timestamp: Date.now() - 8000 },
+  { turn: 8, agentId: 'agent-3', action: 'open_chest', targetId: 'demo-chest-2', damage: 0, description: '📦 Agent Three opens a chest and grabs a Recon Drone.', timestamp: Date.now() - 12000 },
+  { turn: 8, agentId: 'agent-5', action: 'defend', targetId: '', damage: 0, description: '🛡️ Agent Five braces and reduces incoming damage.', timestamp: Date.now() - 15000 },
 ];
 
 const DEMO_AGENTS: Map<string, AgentData> = new Map([
-  ['agent-vanguard', baseAgent({ id: 'agent-vanguard', name: 'Aegis Lance', archetype: 'vanguard', hp: 104, maxHp: 120, attack: 14, defense: 8, speed: 5, attackRange: 2, ammo: 18, maxAmmo: 20, position: { x: 2, y: 2 }, damageDealt: 42, damageTaken: 16 })],
-  ['agent-ranger', baseAgent({ id: 'agent-ranger', name: 'Skyline', archetype: 'ranger', hp: 70, maxHp: 82, attack: 16, defense: 4, speed: 4, attackRange: 5, ammo: 9, maxAmmo: 14, bonusRange: 1, position: { x: 8, y: 1 }, damageDealt: 61, damageTaken: 12, kills: 1 })],
-  ['agent-medic', baseAgent({ id: 'agent-medic', name: 'Patchwire', archetype: 'medic', hp: 88, maxHp: 96, attack: 9, defense: 6, speed: 5, attackRange: 3, ammo: 16, maxAmmo: 18, hasShield: true, shieldTurns: 1, smokeTurns: 1, position: { x: 1, y: 5 }, itemsReceived: 1 })],
-  ['agent-saboteur', baseAgent({ id: 'agent-saboteur', name: 'Glitch', archetype: 'saboteur', hp: 74, maxHp: 88, attack: 15, defense: 5, speed: 7, attackRange: 2, ammo: 12, maxAmmo: 18, revealTurns: 2, position: { x: 6, y: 4 }, damageBoostTurns: 1, damageBoostMultiplier: 1.2, inventory: [{ type: 'grenade', consumed: false }], damageDealt: 55, damageTaken: 30, kills: 1 })],
-  ['agent-titan', baseAgent({ id: 'agent-titan', name: 'Bulwark', archetype: 'titan', hp: 132, maxHp: 150, attack: 11, defense: 10, speed: 3, attackRange: 2, ammo: 15, maxAmmo: 16, temporaryHp: 18, isDefending: true, position: { x: 3, y: 8 }, damageTaken: 44 })],
+  ['agent-1', baseAgent({ id: 'agent-1', name: 'Agent One', hp: 100, position: { x: 2, y: 2 }, damageDealt: 24, damageTaken: 12 })],
+  ['agent-2', baseAgent({ id: 'agent-2', name: 'Agent Two', hp: 84, ammo: 17, position: { x: 8, y: 1 }, damageDealt: 38, damageTaken: 18, kills: 1, bonusRange: 1 })],
+  ['agent-3', baseAgent({ id: 'agent-3', name: 'Agent Three', hp: 91, hasShield: true, shieldTurns: 1, position: { x: 1, y: 5 }, itemsReceived: 1 })],
+  ['agent-4', baseAgent({ id: 'agent-4', name: 'Agent Four', hp: 67, position: { x: 6, y: 4 }, damageDealt: 31, damageTaken: 33, inventory: [{ type: 'grenade', consumed: false }] })],
+  ['agent-5', baseAgent({ id: 'agent-5', name: 'Agent Five', hp: 72, temporaryHp: 12, isDefending: true, position: { x: 3, y: 8 }, damageTaken: 28 })],
 ]);
 
 function App() {
@@ -111,7 +105,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'bet' | 'sponsor'>('bet');
 
   const agents = gameState?.agents?.size ? gameState.agents : DEMO_AGENTS;
-  const currentAgentId = gameState?.currentAgentId || 'agent-vanguard';
+  const currentAgentId = gameState?.currentAgentId || 'agent-1';
   const phase = gameState?.phase || 'active';
   const matchId = gameState?.matchId as `0x${string}` | undefined;
   const tiles = gameState?.tiles || DEMO_TILES;
@@ -208,7 +202,7 @@ function App() {
             {Array.from(agents.values()).map((agent) => (
               <div key={agent.id} className={`agent-card ${agent.id === currentAgentId ? 'current' : ''} ${!agent.isAlive ? 'dead' : ''}`}>
                 <div className="agent-name">{agent.name}</div>
-                <div className="agent-meta">{agent.archetype.toUpperCase()}</div>
+                <div className="agent-meta">UNIFORM AGENT</div>
                 <div className="agent-stats">HP {agent.hp + agent.temporaryHp}/{agent.maxHp + Math.max(agent.temporaryHp, 0)}</div>
                 <div className="agent-stats">ATK {agent.attack} • DEF {agent.defense} • RNG {agent.attackRange + agent.bonusRange}</div>
                 <div className="agent-stats">Inventory {agent.inventory.filter((item) => !item.consumed).length}</div>

@@ -3,14 +3,7 @@ import { formatEther } from 'viem';
 import { useReactiveBetting, type AgentOdds } from '../../hooks/useReactiveBetting';
 import type { AgentData } from '../../hooks/useGameServer';
 
-// ─── Archetype display ───────────────────────────────────────────
-const ARCHETYPE_EMOJI: Record<string, string> = {
-  vanguard: '🗡️',
-  sniper: '🎯',
-  support: '💚',
-  assassin: '🥷',
-  tank: '🛡️',
-};
+const AGENT_EMOJI = '⚔️';
 
 interface BettingPanelProps {
   matchId: `0x${string}` | undefined;
@@ -81,7 +74,7 @@ export function BettingPanel({ matchId, agents }: BettingPanelProps) {
               disabled={matchState !== 1 || !agent.isAlive}
             >
               <div className="agent-bet-header">
-                <span className="agent-emoji">{ARCHETYPE_EMOJI[agent.archetype] || '⚔️'}</span>
+                <span className="agent-emoji">{AGENT_EMOJI}</span>
                 <span className="agent-name">{agent.name}</span>
               </div>
               <div className="agent-bet-stats">

@@ -1,19 +1,9 @@
 import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 
-// ─── Agent Archetypes ────────────────────────────────────────────
-export enum AgentArchetype {
-  VANGUARD = "vanguard",
-  RANGER = "ranger",
-  MEDIC = "medic",
-  SABOTEUR = "saboteur",
-  TITAN = "titan",
-}
-
 export enum ActionType {
   MOVE = "move",
   ATTACK = "attack",
   DEFEND = "defend",
-  ABILITY = "ability",
   SKIP = "skip",
   OPEN_CHEST = "open_chest",
   USE_ITEM = "use_item",
@@ -59,13 +49,22 @@ export enum MapTheme {
   CYBER_RUINS = "cyber_ruins",
 }
 
-// ─── Position Schema ─────────────────────────────────────────────
+export const UNIFORM_AGENT_STATS = {
+  hp: 100,
+  attack: 12,
+  defense: 8,
+  speed: 5,
+  ammo: 20,
+  attackRange: 2,
+  actionsPerTurn: 2,
+  description: "Uniform arena combatant with move, attack, defend, and item usage.",
+} as const;
+
 export class Position extends Schema {
   @type("number") x: number = 0;
   @type("number") y: number = 0;
 }
 
-// ─── Status Effect Schema ────────────────────────────────────────
 export class StatusEffect extends Schema {
   @type("string") type: string = "";
   @type("number") turnsRemaining: number = 0;
@@ -112,30 +111,25 @@ export class ChestState extends Schema {
   @type("boolean") autoEquip: boolean = true;
 }
 
-// ─── Agent Schema ────────────────────────────────────────────────
 export class AgentState extends Schema {
   @type("string") id: string = "";
   @type("string") name: string = "";
-  @type("string") archetype: string = AgentArchetype.VANGUARD;
   @type("string") walletAddress: string = "";
 
-  // Stats
-  @type("number") hp: number = 100;
-  @type("number") maxHp: number = 100;
-  @type("number") attack: number = 10;
-  @type("number") defense: number = 5;
-  @type("number") speed: number = 5;
-  @type("number") ammo: number = 30;
-  @type("number") maxAmmo: number = 30;
-  @type("number") attackRange: number = 3;
+  @type("number") hp: number = UNIFORM_AGENT_STATS.hp;
+  @type("number") maxHp: number = UNIFORM_AGENT_STATS.hp;
+  @type("number") attack: number = UNIFORM_AGENT_STATS.attack;
+  @type("number") defense: number = UNIFORM_AGENT_STATS.defense;
+  @type("number") speed: number = UNIFORM_AGENT_STATS.speed;
+  @type("number") ammo: number = UNIFORM_AGENT_STATS.ammo;
+  @type("number") maxAmmo: number = UNIFORM_AGENT_STATS.ammo;
+  @type("number") attackRange: number = UNIFORM_AGENT_STATS.attackRange;
   @type("number") bonusRange: number = 0;
-  @type("number") actionsPerTurn: number = 2;
+  @type("number") actionsPerTurn: number = UNIFORM_AGENT_STATS.actionsPerTurn;
   @type("number") temporaryHp: number = 0;
 
-  // Position on the arena grid
   @type(Position) position: Position = new Position();
 
-  // Combat state
   @type("boolean") isAlive: boolean = true;
   @type("boolean") isDefending: boolean = false;
   @type("boolean") hasShield: boolean = false;
@@ -146,24 +140,16 @@ export class AgentState extends Schema {
   @type("number") revealTurns: number = 0;
   @type("number") smokeTurns: number = 0;
   @type("number") disabledTurns: number = 0;
-  @type("boolean") reviveAvailable: boolean = true;
-  @type("boolean") barrierAvailable: boolean = true;
-  @type("number") barrierCooldown: number = 0;
-  @type("number") inspireTurns: number = 0;
-  @type("number") protectedByTitanTurns: number = 0;
 
-  // Stats tracking
   @type("number") damageDealt: number = 0;
   @type("number") damageTaken: number = 0;
   @type("number") kills: number = 0;
   @type("number") itemsReceived: number = 0;
 
-  // Status effects & inventory
   @type([StatusEffect]) statusEffects = new ArraySchema<StatusEffect>();
   @type([InventoryItem]) inventory = new ArraySchema<InventoryItem>();
 }
 
-// ─── Action Log Entry ────────────────────────────────────────────
 export class ActionLogEntry extends Schema {
   @type("number") turn: number = 0;
   @type("string") agentId: string = "";
@@ -174,7 +160,6 @@ export class ActionLogEntry extends Schema {
   @type("number") timestamp: number = 0;
 }
 
-// ─── Sponsorship Event ───────────────────────────────────────────
 export class SponsorshipEvent extends Schema {
   @type("string") matchId: string = "";
   @type("string") agentId: string = "";
@@ -185,9 +170,7 @@ export class SponsorshipEvent extends Schema {
   @type("boolean") delivered: boolean = false;
 }
 
-// ─── Main Arena State ────────────────────────────────────────────
 export class ArenaState extends Schema {
-  // Match info
   @type("string") matchId: string = "";
   @type("string") phase: string = MatchPhase.LOBBY;
   @type("number") turnNumber: number = 0;
@@ -198,90 +181,24 @@ export class ArenaState extends Schema {
   @type("number") height: number = 10;
   @type("string") mapTheme: string = MapTheme.CYBER_RUINS;
 
-  // Arena state
   @type({ map: AgentState }) agents = new MapSchema<AgentState>();
   @type([TileState]) tiles = new ArraySchema<TileState>();
   @type([DestructibleState]) destructibles = new ArraySchema<DestructibleState>();
   @type([ChestState]) chests = new ArraySchema<ChestState>();
-
-  // Turn order
   @type(["string"]) turnOrder = new ArraySchema<string>();
-
-  // Action log
   @type([ActionLogEntry]) actionLog = new ArraySchema<ActionLogEntry>();
-
-  // Sponsorship events
   @type([SponsorshipEvent]) sponsorships = new ArraySchema<SponsorshipEvent>();
 
-  // Match stats
   @type("number") spectatorCount: number = 0;
   @type("number") totalBets: number = 0;
   @type("number") startTime: number = 0;
   @type("string") winnerId: string = "";
 
-  // Blockchain sync
   @type("string") bettingPoolAddress: string = "";
   @type("string") sponsorshipAddress: string = "";
   @type("string") matchTimerAddress: string = "";
   @type("number") lastBlockSynced: number = 0;
 }
-
-// ─── Agent Base Stats by Archetype ───────────────────────────────
-export const ARCHETYPE_STATS: Record<string, {
-  hp: number;
-  attack: number;
-  defense: number;
-  speed: number;
-  ammo: number;
-  attackRange: number;
-  description: string;
-}> = {
-  [AgentArchetype.VANGUARD]: {
-    hp: 120,
-    attack: 14,
-    defense: 8,
-    speed: 5,
-    ammo: 20,
-    attackRange: 2,
-    description: "Balanced frontline bruiser with charge and inspire.",
-  },
-  [AgentArchetype.RANGER]: {
-    hp: 82,
-    attack: 16,
-    defense: 4,
-    speed: 4,
-    ammo: 14,
-    attackRange: 5,
-    description: "Long-range specialist with piercing shots and elevation scaling.",
-  },
-  [AgentArchetype.MEDIC]: {
-    hp: 96,
-    attack: 9,
-    defense: 6,
-    speed: 5,
-    ammo: 18,
-    attackRange: 3,
-    description: "Field healer with smoke cover and clutch revive.",
-  },
-  [AgentArchetype.SABOTEUR]: {
-    hp: 88,
-    attack: 15,
-    defense: 5,
-    speed: 7,
-    ammo: 18,
-    attackRange: 2,
-    description: "Mobile disruptor with teleport, EMP, and cover-breaking tools.",
-  },
-  [AgentArchetype.TITAN]: {
-    hp: 150,
-    attack: 11,
-    defense: 10,
-    speed: 3,
-    ammo: 16,
-    attackRange: 2,
-    description: "Heavy anchor that shields allies and deploys temporary cover.",
-  },
-};
 
 export const CHEST_ITEM_LABELS: Record<string, string> = {
   [ChestItemType.MEDKIT]: "Medkit",

@@ -50,7 +50,6 @@ export interface ChestData {
 export interface AgentData {
   id: string;
   name: string;
-  archetype: string;
   walletAddress: string;
   hp: number;
   maxHp: number;
@@ -74,11 +73,6 @@ export interface AgentData {
   revealTurns: number;
   smokeTurns: number;
   disabledTurns: number;
-  reviveAvailable: boolean;
-  barrierAvailable: boolean;
-  barrierCooldown: number;
-  inspireTurns: number;
-  protectedByTitanTurns: number;
   damageDealt: number;
   damageTaken: number;
   kills: number;
@@ -145,7 +139,6 @@ export function useGameServer() {
             agents.set(key, {
               id: agent.id,
               name: agent.name,
-              archetype: agent.archetype,
               walletAddress: agent.walletAddress,
               hp: agent.hp,
               maxHp: agent.maxHp,
@@ -169,11 +162,6 @@ export function useGameServer() {
               revealTurns: agent.revealTurns,
               smokeTurns: agent.smokeTurns,
               disabledTurns: agent.disabledTurns,
-              reviveAvailable: agent.reviveAvailable,
-              barrierAvailable: agent.barrierAvailable,
-              barrierCooldown: agent.barrierCooldown,
-              inspireTurns: agent.inspireTurns,
-              protectedByTitanTurns: agent.protectedByTitanTurns,
               damageDealt: agent.damageDealt,
               damageTaken: agent.damageTaken,
               kills: agent.kills,

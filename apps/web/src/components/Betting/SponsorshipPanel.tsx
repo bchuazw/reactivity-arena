@@ -2,13 +2,7 @@ import { useState } from 'react';
 import { useReactiveBetting, ItemType, ITEM_NAMES, ITEM_COSTS } from '../../hooks/useReactiveBetting';
 import type { AgentData } from '../../hooks/useGameServer';
 
-const ARCHETYPE_EMOJI: Record<string, string> = {
-  vanguard: '🗡️',
-  sniper: '🎯',
-  support: '💚',
-  assassin: '🥷',
-  tank: '🛡️',
-};
+const AGENT_EMOJI = '⚔️';
 
 interface SponsorshipPanelProps {
   matchId: `0x${string}` | undefined;
@@ -57,7 +51,7 @@ export function SponsorshipPanel({ matchId, agents }: SponsorshipPanelProps) {
             onClick={() => setSelectedAgent(agent.walletAddress)}
             disabled={matchState !== 1}
           >
-            <span>{ARCHETYPE_EMOJI[agent.archetype] || '⚔️'}</span>
+            <span>{AGENT_EMOJI}</span>
             <span>{agent.name}</span>
           </button>
         ))}

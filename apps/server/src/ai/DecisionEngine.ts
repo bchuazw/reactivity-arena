@@ -1,9 +1,7 @@
 import {
-  AgentArchetype,
   AgentState,
   ArenaState,
   ChestItemType,
-  TerrainType,
   ActionType,
 } from "../schema/ArenaState";
 
@@ -36,193 +34,66 @@ export class DecisionEngine {
   async decide(agent: AgentState, state: ArenaState): Promise<AgentAction> {
     const enemies = this.getAliveEnemies(agent, state);
     const threats = this.assessThreats(agent, enemies);
+    const nearest = threats[0];
     const adjacentChest = [...state.chests].find(
       (chest: any) => !chest.opened && this.distancePos(agent.position, chest.position) === 1
     );
 
-    if (adjacentChest && (agent.hp < agent.maxHp * 0.8 || agent.inventory.length === 0)) {
+    if (adjacentChest && (agent.hp < agent.maxHp * 0.85 || agent.inventory.length === 0)) {
       return {
         type: ActionType.OPEN_CHEST,
         chestId: adjacentChest.id,
-        reasoning: `Securing nearby chest for tempo and resources (${adjacentChest.itemType}).`,
+        reasoning: `Open adjacent chest for item advantage (${adjacentChest.itemType}).`,
       };
     }
 
     const usableItem = this.chooseUsableItem(agent, threats);
     if (usableItem) return usableItem;
 
-    switch (agent.archetype) {
-      case AgentArchetype.RANGER:
-        return this.rangerStrategy(agent, state, threats);
-      case AgentArchetype.MEDIC:
-        return this.medicStrategy(agent, state, threats);
-      case AgentArchetype.SABOTEUR:
-        return this.saboteurStrategy(agent, state, threats);
-      case AgentArchetype.TITAN:
-        return this.titanStrategy(agent, state, threats);
-      case AgentArchetype.VANGUARD:
-      default:
-        return this.vanguardStrategy(agent, state, threats);
+    if (!nearest) {
+      return { type: ActionType.SKIP, reasoning: "No enemies remain." };
     }
-  }
-
-  private vanguardStrategy(agent: AgentState, state: ArenaState, threats: ThreatAssessment[]): AgentAction {
-    const nearest = threats[0];
-    if (!nearest) return { type: ActionType.SKIP, reasoning: "No threats left." };
 
     if (agent.hp < agent.maxHp * 0.35) {
-      return { type: ActionType.DEFEND, reasoning: "Low HP, bracing and rallying." };
-    }
-
-    if (nearest.distance <= agent.attackRange) {
-      if (nearest.distance > 1 && agent.disabledTurns <= 0) {
-        return { type: ActionType.ABILITY, targetId: nearest.agentId, reasoning: "Charge through lane and strike first." };
-      }
-      return { type: ActionType.ATTACK, targetId: nearest.agentId, reasoning: "Pressuring the frontline target." };
-    }
-
-    const chestMove = this.tryMoveTowardChest(agent, state, threats, 7);
-    if (chestMove) return chestMove;
-
-    return this.moveToBestTile(agent, state, nearest.target, {
-      preferCover: true,
-      preferElevation: true,
-      aggressive: true,
-    }, "Advancing into a strong assault position.");
-  }
-
-  private rangerStrategy(agent: AgentState, state: ArenaState, threats: ThreatAssessment[]): AgentAction {
-    const nearest = threats[0];
-    if (!nearest) return { type: ActionType.SKIP, reasoning: "No targets in scope." };
-
-    if (agent.ammo <= 1 || nearest.distance <= 1) {
-      return this.moveToBestTile(agent, state, nearest.target, {
-        preferCover: true,
-        preferElevation: true,
-        keepDistance: true,
-      }, "Repositioning to maintain a firing lane.");
+      return { type: ActionType.DEFEND, reasoning: "Low HP, defending to reduce incoming damage." };
     }
 
     if (nearest.distance <= agent.attackRange + agent.bonusRange) {
-      return { type: ActionType.ATTACK, targetId: nearest.agentId, reasoning: "Taking a clean ranged shot." };
+      return { type: ActionType.ATTACK, targetId: nearest.agentId, reasoning: "Enemy in range, taking the shot." };
     }
 
     const chestMove = this.tryMoveTowardChest(agent, state, threats, 6);
     if (chestMove) return chestMove;
 
-    return this.moveToBestTile(agent, state, nearest.target, {
-      preferCover: true,
-      preferElevation: true,
-      keepDistance: true,
-    }, "Seeking rooftop angle with cover.");
-  }
-
-  private medicStrategy(agent: AgentState, state: ArenaState, threats: ThreatAssessment[]): AgentAction {
-    const reviveTarget = [...state.agents.values()].find(
-      (ally) => ally.id !== agent.id && !ally.isAlive && agent.reviveAvailable && this.distancePos(agent.position, ally.position) <= 1
+    return this.moveToBestTile(
+      agent,
+      state,
+      nearest.target,
+      {
+        preferCover: true,
+        preferElevation: true,
+        preferHealing: agent.hp < agent.maxHp * 0.7,
+        aggressive: true,
+      },
+      "Advancing toward a stronger combat position."
     );
-    if (reviveTarget) {
-      return { type: ActionType.ABILITY, targetId: reviveTarget.id, reasoning: "Emergency revive on adjacent ally." };
-    }
-
-    const lowestAlly = [...state.agents.values()]
-      .filter((ally) => ally.id !== agent.id && ally.isAlive)
-      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-
-    if (agent.hp < agent.maxHp * 0.55 || (lowestAlly && lowestAlly.hp < lowestAlly.maxHp * 0.55)) {
-      return { type: ActionType.ABILITY, targetId: lowestAlly?.id, reasoning: "Deploying heal burst / smoke support." };
-    }
-
-    const nearest = threats[0];
-    if (nearest && nearest.distance <= agent.attackRange) {
-      return { type: ActionType.ATTACK, targetId: nearest.agentId, reasoning: "Taking safe combat shots while supporting." };
-    }
-
-    const chestMove = this.tryMoveTowardChest(agent, state, threats, 8);
-    if (chestMove) return chestMove;
-
-    return this.moveToBestTile(agent, state, lowestAlly ?? nearest?.target, {
-      preferCover: true,
-      preferHealing: true,
-      keepDistance: true,
-    }, "Sliding into support position.");
-  }
-
-  private saboteurStrategy(agent: AgentState, state: ArenaState, threats: ThreatAssessment[]): AgentAction {
-    const nearest = threats[0];
-    const weakest = [...threats].sort((a, b) => a.hp - b.hp)[0];
-    if (!weakest) return { type: ActionType.SKIP, reasoning: "No prey located." };
-
-    const target = weakest.target;
-    if (!target) return { type: ActionType.SKIP, reasoning: "No prey located." };
-
-    const enemyOnCover = this.getTile(state, target.position.x, target.position.y)?.providesCover;
-    if ((enemyOnCover || this.adjacentDestructible(state, target.position.x, target.position.y)) && agent.disabledTurns <= 0) {
-      return { type: ActionType.ABILITY, targetId: target.id, reasoning: "Hack cover and EMP the clustered target." };
-    }
-
-    if (weakest.distance <= agent.attackRange) {
-      return { type: ActionType.ATTACK, targetId: weakest.agentId, reasoning: "Bursting the softened target." };
-    }
-
-    const nearbyChest = this.closestChest(agent, state);
-    if (nearbyChest && this.distancePos(agent.position, nearbyChest.position) <= 3) {
-      return {
-        type: ActionType.MOVE,
-        targetX: nearbyChest.position.x,
-        targetY: nearbyChest.position.y,
-        reasoning: "Blinking toward loot to swing momentum.",
-      };
-    }
-
-    return {
-      type: ActionType.ABILITY,
-      targetId: target.id,
-      reasoning: "Teleporting onto a high-value flank.",
-    };
-  }
-
-  private titanStrategy(agent: AgentState, state: ArenaState, threats: ThreatAssessment[]): AgentAction {
-    const nearbyAllies = [...state.agents.values()].filter(
-      (ally) => ally.id !== agent.id && ally.isAlive && this.distancePos(agent.position, ally.position) <= 1
-    );
-    if (nearbyAllies.some((ally) => ally.hp < ally.maxHp * 0.6) || threats.filter((t) => t.distance <= 2).length >= 2) {
-      return { type: ActionType.ABILITY, reasoning: "Deploying barrier and shield wall for adjacent allies." };
-    }
-
-    const nearest = threats[0];
-    if (!nearest) return { type: ActionType.DEFEND, reasoning: "Holding the objective." };
-
-    if (agent.hp < agent.maxHp * 0.4) {
-      return { type: ActionType.DEFEND, reasoning: "Soaking pressure and restoring footing." };
-    }
-
-    if (nearest.distance <= agent.attackRange) {
-      return { type: ActionType.ATTACK, targetId: nearest.agentId, reasoning: "Punishing anything in melee range." };
-    }
-
-    return this.moveToBestTile(agent, state, nearest.target, {
-      preferCover: true,
-      preferChokepoint: true,
-      aggressive: true,
-    }, "Marching to lock down a chokepoint.");
   }
 
   private chooseUsableItem(agent: AgentState, threats: ThreatAssessment[]): AgentAction | null {
     const available = [...agent.inventory].find((item) => !item.consumed);
     if (!available) return null;
 
-    if (available.type === ChestItemType.MEDKIT && agent.hp < agent.maxHp * 0.45) {
-      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Emergency medkit to stabilize." };
+    if (available.type === ChestItemType.MEDKIT && agent.hp < agent.maxHp * 0.5) {
+      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Using medkit to stabilize." };
     }
     if (available.type === ChestItemType.SHIELD_BATTERY && threats.some((t) => t.distance <= 2)) {
-      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Activating shield battery before the brawl." };
+      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Using shield before close combat." };
     }
     if (available.type === ChestItemType.ADRENALINE && threats.some((t) => t.distance <= 2)) {
-      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Injecting adrenaline for an explosive turn." };
+      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Using adrenaline for extra tempo." };
     }
     if (available.type === ChestItemType.SPEED_BOOST && threats.length > 0 && threats[0].distance > agent.attackRange) {
-      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Using speed boost to seize positioning." };
+      return { type: ActionType.USE_ITEM, itemType: available.type, reasoning: "Using speed boost to close distance." };
     }
     return null;
   }
@@ -237,14 +108,14 @@ export class DecisionEngine {
     if (!chest) return null;
     const dist = this.distancePos(agent.position, chest.position);
     if (dist > maxDistance) return null;
-    if (threats[0] && threats[0].distance <= 2 && agent.hp > agent.maxHp * 0.6) return null;
+    if (threats[0] && threats[0].distance <= 2 && agent.hp > agent.maxHp * 0.65) return null;
 
     return {
       type: ActionType.MOVE,
       targetX: chest.position.x,
       targetY: chest.position.y,
       chestId: chest.id,
-      reasoning: `Rotating toward chest (${chest.itemType}) for tempo advantage.`,
+      reasoning: `Moving toward chest (${chest.itemType}) for resources.`,
     };
   }
 
@@ -256,9 +127,8 @@ export class DecisionEngine {
       preferCover?: boolean;
       preferElevation?: boolean;
       preferHealing?: boolean;
-      preferChokepoint?: boolean;
-      keepDistance?: boolean;
       aggressive?: boolean;
+      keepDistance?: boolean;
     },
     fallbackReason: string
   ): AgentAction {
@@ -289,9 +159,8 @@ export class DecisionEngine {
       preferCover?: boolean;
       preferElevation?: boolean;
       preferHealing?: boolean;
-      preferChokepoint?: boolean;
-      keepDistance?: boolean;
       aggressive?: boolean;
+      keepDistance?: boolean;
     }
   ): TileScore {
     const tile = this.getTile(state, x, y);
@@ -305,20 +174,20 @@ export class DecisionEngine {
       reasons.push("cover");
     }
     if (tile.elevation > 0 && prefs.preferElevation) {
-      score += 12 + tile.elevation * 4;
+      score += 10 + tile.elevation * 4;
       reasons.push("high ground");
     }
-    if (tile.healing && prefs.preferHealing && agent.hp < agent.maxHp * 0.8) {
+    if (tile.healing && prefs.preferHealing) {
       score += 14;
       reasons.push("healing zone");
     }
-    if (tile.chokepoint && prefs.preferChokepoint) {
-      score += 8;
-      reasons.push("chokepoint control");
-    }
     if (tile.concealment) {
-      score += 6;
+      score += 5;
       reasons.push("concealment");
+    }
+    if (tile.chokepoint) {
+      score += 3;
+      reasons.push("chokepoint pressure");
     }
     if (tile.vulnerable) score -= 8;
 
@@ -397,10 +266,6 @@ export class DecisionEngine {
 
   private hasBlockingProp(state: ArenaState, x: number, y: number): boolean {
     return [...state.destructibles].some((prop) => prop.position.x === x && prop.position.y === y && prop.blocksMovement && prop.hp > 0);
-  }
-
-  private adjacentDestructible(state: ArenaState, x: number, y: number): boolean {
-    return [...state.destructibles].some((prop) => prop.hp > 0 && this.distancePos(prop.position, { x, y }) <= 1);
   }
 
   private distance(a: AgentState, b: AgentState): number {

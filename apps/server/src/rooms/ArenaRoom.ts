@@ -3,20 +3,18 @@ import { ethers } from "ethers";
 import {
   ActionLogEntry,
   ActionType,
-  AgentArchetype,
   AgentState,
-  ARCHETYPE_STATS,
   ArenaState,
   CHEST_ITEM_LABELS,
   ChestItemType,
   InventoryItem,
   MatchPhase,
   Position,
-  PropType,
   SponsorshipEvent,
   TerrainType,
   DestructibleState,
   StatusEffect,
+  UNIFORM_AGENT_STATS,
 } from "../schema/ArenaState";
 import { DecisionEngine, AgentAction } from "../ai/DecisionEngine";
 import { MapGenerator } from "../map/MapGenerator";
@@ -34,36 +32,11 @@ const ARENA_SIZE = 10;
 const MAX_LOG_ENTRIES = 50;
 
 const AI_AGENTS = [
-  {
-    id: "agent-vanguard",
-    name: "Aegis Lance",
-    archetype: AgentArchetype.VANGUARD,
-    walletAddress: ethers.Wallet.createRandom().address,
-  },
-  {
-    id: "agent-ranger",
-    name: "Skyline",
-    archetype: AgentArchetype.RANGER,
-    walletAddress: ethers.Wallet.createRandom().address,
-  },
-  {
-    id: "agent-medic",
-    name: "Patchwire",
-    archetype: AgentArchetype.MEDIC,
-    walletAddress: ethers.Wallet.createRandom().address,
-  },
-  {
-    id: "agent-saboteur",
-    name: "Glitch",
-    archetype: AgentArchetype.SABOTEUR,
-    walletAddress: ethers.Wallet.createRandom().address,
-  },
-  {
-    id: "agent-titan",
-    name: "Bulwark",
-    archetype: AgentArchetype.TITAN,
-    walletAddress: ethers.Wallet.createRandom().address,
-  },
+  { id: "agent-1", name: "Agent One", walletAddress: ethers.Wallet.createRandom().address },
+  { id: "agent-2", name: "Agent Two", walletAddress: ethers.Wallet.createRandom().address },
+  { id: "agent-3", name: "Agent Three", walletAddress: ethers.Wallet.createRandom().address },
+  { id: "agent-4", name: "Agent Four", walletAddress: ethers.Wallet.createRandom().address },
+  { id: "agent-5", name: "Agent Five", walletAddress: ethers.Wallet.createRandom().address },
 ];
 
 export class ArenaRoom extends Room {
@@ -112,7 +85,7 @@ export class ArenaRoom extends Room {
     client.send("welcome", {
       matchId: this.state.matchId,
       phase: this.state.phase,
-      agents: AI_AGENTS.map((a) => ({ id: a.id, name: a.name, archetype: a.archetype })),
+      agents: AI_AGENTS.map((a) => ({ id: a.id, name: a.name })),
       mapTheme: this.state.mapTheme,
     });
   }
@@ -146,7 +119,7 @@ export class ArenaRoom extends Room {
     this.state.currentAgentId = firstAgentId;
     this.state.turnDeadline = Date.now() + TURN_TIMEOUT_MS;
 
-    this.addLog(0, "system", ActionType.SKIP, "", 0, "⚔️ MATCH STARTED in the Neon Ruins! Control bridges, rooftops, and loot drops.");
+    this.addLog(0, "system", ActionType.SKIP, "", 0, "⚔️ MATCH STARTED in the Neon Ruins! Uniform agents enter the arena.");
     this.scheduleTurn();
   }
 
@@ -192,14 +165,10 @@ export class ArenaRoom extends Room {
     if (tile?.healing && agent.isAlive) {
       const heal = 10;
       agent.hp = Math.min(agent.maxHp, agent.hp + heal);
-      this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, agent.id, heal, `🩺 ${agent.name} regenerates ${heal} HP in a med station.`);
+      this.addLog(this.state.turnNumber, agent.id, ActionType.USE_ITEM, agent.id, heal, `🩺 ${agent.name} regenerates ${heal} HP in a med station.`);
     }
 
-    if ((tile?.elevation ?? 0) > 0) {
-      agent.bonusRange = 1;
-    } else {
-      agent.bonusRange = 0;
-    }
+    agent.bonusRange = (tile?.elevation ?? 0) > 0 ? 1 : 0;
   }
 
   private endTurn(agent: AgentState) {
@@ -216,9 +185,6 @@ export class ArenaRoom extends Room {
         break;
       case ActionType.MOVE:
         this.executeMove(agent, action);
-        break;
-      case ActionType.ABILITY:
-        this.executeAbility(agent, action);
         break;
       case ActionType.OPEN_CHEST:
         this.executeOpenChest(agent, action);
@@ -254,19 +220,10 @@ export class ArenaRoom extends Room {
     if (targetTile?.vulnerable) baseDamage += 2;
     if (targetTile?.providesCover || this.hasAdjacentCover(target.position.x, target.position.y)) baseDamage -= 3;
     if (targetTile?.concealment && agent.revealTurns <= 0) baseDamage -= 2;
-    if (distance <= 1 && agent.archetype === AgentArchetype.RANGER) baseDamage -= 3;
 
     let actualDamage = Math.max(1, baseDamage - target.defense);
     if (target.hasShield && target.shieldTurns > 0) actualDamage = Math.floor(actualDamage * 0.65);
-    if (target.isDefending) actualDamage = Math.floor(actualDamage * 0.6);
-    if (target.protectedByTitanTurns > 0) actualDamage = Math.floor(actualDamage * 0.8);
-
-    if (agent.archetype === AgentArchetype.RANGER) {
-      const lineTarget = this.findSecondTargetInLine(agent, target);
-      if (lineTarget) {
-        this.applyDamage(agent, lineTarget, Math.max(1, Math.floor(actualDamage * 0.6)), `${agent.name}'s piercing shot clips ${lineTarget.name}!`);
-      }
-    }
+    if (target.isDefending) actualDamage = Math.floor(actualDamage * 0.5);
 
     if (this.tryDamageDestructibleAt(target.position.x, target.position.y, actualDamage, agent)) {
       this.addLog(this.state.turnNumber, agent.id, ActionType.ATTACK, target.id, actualDamage, `💥 ${agent.name} blasts through cover near ${target.name}.`);
@@ -282,12 +239,7 @@ export class ArenaRoom extends Room {
 
   private executeDefend(agent: AgentState) {
     agent.isDefending = true;
-    const healAmount = 8;
-    agent.hp = Math.min(agent.maxHp, agent.hp + healAmount);
-    agent.hasShield = true;
-    agent.shieldTurns = Math.max(agent.shieldTurns, 1);
-
-    this.addLog(this.state.turnNumber, agent.id, ActionType.DEFEND, "", 0, `🛡️ ${agent.name} fortifies, gains guard, and recovers ${healAmount} HP.`);
+    this.addLog(this.state.turnNumber, agent.id, ActionType.DEFEND, "", 0, `🛡️ ${agent.name} defends and will take 50% less damage until next turn.`);
   }
 
   private executeMove(agent: AgentState, action: AgentAction) {
@@ -303,124 +255,6 @@ export class ArenaRoom extends Room {
     const tile = this.getTile(destination.x, destination.y);
     const terrainLabel = tile?.terrain ?? TerrainType.GROUND;
     this.addLog(this.state.turnNumber, agent.id, ActionType.MOVE, "", 0, `🏃 ${agent.name} moves to (${destination.x}, ${destination.y}) across ${terrainLabel}.`);
-  }
-
-  private executeAbility(agent: AgentState, action: AgentAction) {
-    switch (agent.archetype) {
-      case AgentArchetype.VANGUARD:
-        this.executeVanguardAbility(agent, action);
-        break;
-      case AgentArchetype.RANGER:
-        this.executeRangerAbility(agent, action);
-        break;
-      case AgentArchetype.MEDIC:
-        this.executeMedicAbility(agent, action);
-        break;
-      case AgentArchetype.SABOTEUR:
-        this.executeSaboteurAbility(agent, action);
-        break;
-      case AgentArchetype.TITAN:
-        this.executeTitanAbility(agent);
-        break;
-      default:
-        this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, "", 0, `✨ ${agent.name} uses a tactical ability.`);
-    }
-  }
-
-  private executeVanguardAbility(agent: AgentState, action: AgentAction) {
-    if (!action.targetId) return;
-    const target = this.state.agents.get(action.targetId);
-    if (!target || !target.isAlive) return;
-
-    const adjacent = this.findAdjacentFreeCell(target.position.x, target.position.y);
-    if (adjacent) {
-      agent.position.x = adjacent.x;
-      agent.position.y = adjacent.y;
-    }
-
-    const damage = Math.max(8, agent.attack + 2 - target.defense);
-    this.applyDamage(agent, target, damage, `⚡ ${agent.name} charges into ${target.name} for ${damage} damage!`);
-
-    [...this.state.agents.values()]
-      .filter((ally) => ally.id !== agent.id && ally.isAlive && this.distance(agent.position, ally.position) <= 2)
-      .forEach((ally) => {
-        ally.damageBoostTurns = Math.max(ally.damageBoostTurns, 1);
-        ally.damageBoostMultiplier = Math.max(ally.damageBoostMultiplier, 1.2);
-      });
-
-    this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, target.id, damage, `⚡ ${agent.name} charges and inspires nearby allies.`);
-  }
-
-  private executeRangerAbility(agent: AgentState, action: AgentAction) {
-    if (!action.targetId) return;
-    const target = this.state.agents.get(action.targetId);
-    if (!target || !target.isAlive) return;
-
-    const firstHit = Math.max(8, agent.attack + 4 - target.defense);
-    this.applyDamage(agent, target, firstHit, `🎯 ${agent.name} fires a piercing shot into ${target.name}.`);
-    const second = this.findSecondTargetInLine(agent, target);
-    if (second) {
-      const splash = Math.max(6, Math.floor(firstHit * 0.75));
-      this.applyDamage(agent, second, splash, `🎯 ${second.name} is pierced through the same lane.`);
-      this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, second.id, splash, `🎯 ${agent.name}'s piercing shot also hits ${second.name} for ${splash}.`);
-    }
-  }
-
-  private executeMedicAbility(agent: AgentState, action: AgentAction) {
-    const reviveTarget = action.targetId ? this.state.agents.get(action.targetId) : undefined;
-    if (reviveTarget && !reviveTarget.isAlive && agent.reviveAvailable && this.distance(agent.position, reviveTarget.position) <= 1) {
-      reviveTarget.isAlive = true;
-      reviveTarget.hp = Math.floor(reviveTarget.maxHp * 0.4);
-      agent.reviveAvailable = false;
-      this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, reviveTarget.id, 0, `💚 ${agent.name} revives ${reviveTarget.name}!`);
-      return;
-    }
-
-    [...this.state.agents.values()]
-      .filter((ally) => ally.isAlive && this.distance(agent.position, ally.position) <= 2)
-      .forEach((ally) => {
-        ally.hp = Math.min(ally.maxHp, ally.hp + 16);
-        ally.smokeTurns = Math.max(ally.smokeTurns, 1);
-      });
-
-    this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, action.targetId || "", 16, `💚 ${agent.name} releases a heal burst and smoke cover.`);
-  }
-
-  private executeSaboteurAbility(agent: AgentState, action: AgentAction) {
-    if (!action.targetId) return;
-    const target = this.state.agents.get(action.targetId);
-    if (!target || !target.isAlive) return;
-
-    const adjacent = this.findAdjacentFreeCell(target.position.x, target.position.y);
-    if (adjacent) {
-      agent.position.x = adjacent.x;
-      agent.position.y = adjacent.y;
-    }
-
-    target.disabledTurns = Math.max(target.disabledTurns, 1);
-    this.destroyAdjacentCover(target.position.x, target.position.y, agent);
-    const damage = Math.max(8, agent.attack + 1 - target.defense);
-    this.applyDamage(agent, target, damage, `🧨 ${agent.name} EMP-blasts ${target.name} for ${damage}.`);
-    this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, target.id, damage, `🧨 ${agent.name} hacks cover and disables ${target.name}'s abilities.`);
-  }
-
-  private executeTitanAbility(agent: AgentState) {
-    [...this.state.agents.values()]
-      .filter((ally) => ally.id !== agent.id && ally.isAlive && this.distance(agent.position, ally.position) <= 1)
-      .forEach((ally) => {
-        ally.protectedByTitanTurns = 1;
-        ally.hasShield = true;
-        ally.shieldTurns = Math.max(ally.shieldTurns, 1);
-      });
-
-    if (agent.barrierAvailable) {
-      const cell = this.findAdjacentFreeCell(agent.position.x, agent.position.y);
-      if (cell) this.spawnBarrier(cell.x, cell.y);
-      agent.barrierAvailable = false;
-      agent.barrierCooldown = 3;
-    }
-
-    this.addLog(this.state.turnNumber, agent.id, ActionType.ABILITY, "", 0, `🧱 ${agent.name} raises a cover barrier and shields nearby allies.`);
   }
 
   private executeOpenChest(agent: AgentState, action: AgentAction) {
@@ -532,7 +366,7 @@ export class ArenaRoom extends Room {
     const winner = this.state.agents.get(winnerId);
     const winnerName = winner ? winner.name : "Unknown";
 
-    this.addLog(this.state.turnNumber, "system", ActionType.SKIP, winnerId, 0, `🏆 MATCH OVER! ${winnerName} owns the Neon Ruins after ${this.state.turnNumber} turns.`);
+    this.addLog(this.state.turnNumber, "system", ActionType.SKIP, winnerId, 0, `🏆 MATCH OVER! ${winnerName} wins after ${this.state.turnNumber} turns.`);
 
     this.broadcast("matchEnd", {
       winnerId,
@@ -555,18 +389,16 @@ export class ArenaRoom extends Room {
       const agent = new AgentState();
       agent.id = agentDef.id;
       agent.name = agentDef.name;
-      agent.archetype = agentDef.archetype;
       agent.walletAddress = agentDef.walletAddress;
-
-      const stats = ARCHETYPE_STATS[agentDef.archetype];
-      agent.hp = stats.hp;
-      agent.maxHp = stats.hp;
-      agent.attack = stats.attack;
-      agent.defense = stats.defense;
-      agent.speed = stats.speed;
-      agent.ammo = stats.ammo;
-      agent.maxAmmo = stats.ammo;
-      agent.attackRange = stats.attackRange;
+      agent.hp = UNIFORM_AGENT_STATS.hp;
+      agent.maxHp = UNIFORM_AGENT_STATS.hp;
+      agent.attack = UNIFORM_AGENT_STATS.attack;
+      agent.defense = UNIFORM_AGENT_STATS.defense;
+      agent.speed = UNIFORM_AGENT_STATS.speed;
+      agent.ammo = UNIFORM_AGENT_STATS.ammo;
+      agent.maxAmmo = UNIFORM_AGENT_STATS.ammo;
+      agent.attackRange = UNIFORM_AGENT_STATS.attackRange;
+      agent.actionsPerTurn = UNIFORM_AGENT_STATS.actionsPerTurn;
 
       agent.position = new Position();
       agent.position.x = spawnPoints[index].x;
@@ -658,11 +490,6 @@ export class ArenaRoom extends Room {
     if (agent.revealTurns > 0) agent.revealTurns--;
     if (agent.smokeTurns > 0) agent.smokeTurns--;
     if (agent.disabledTurns > 0) agent.disabledTurns--;
-    if (agent.protectedByTitanTurns > 0) agent.protectedByTitanTurns--;
-    if (agent.barrierCooldown > 0) {
-      agent.barrierCooldown--;
-      if (agent.barrierCooldown <= 0) agent.barrierAvailable = true;
-    }
 
     agent.statusEffects.forEach((effect: StatusEffect) => {
       if (effect.turnsRemaining > 0) effect.turnsRemaining--;
@@ -680,25 +507,26 @@ export class ArenaRoom extends Room {
     const mobility = Math.max(1, agent.speed + (agent.speedBoostTurns > 0 ? agent.speed : 0));
     if (targetX === undefined || targetY === undefined) return null;
 
-    const dx = targetX - agent.position.x;
-    const dy = targetY - agent.position.y;
-    const stepCount = Math.min(mobility, Math.abs(dx) + Math.abs(dy));
-
     let currentX = agent.position.x;
     let currentY = agent.position.y;
-    let remaining = stepCount;
+    let remaining = mobility;
 
-    while (remaining > 0) {
+    while (remaining > 0 && (currentX !== targetX || currentY !== targetY)) {
+      const dx = targetX - currentX;
+      const dy = targetY - currentY;
       const nextX = currentX + (dx === 0 ? 0 : dx > 0 ? 1 : -1);
       const nextY = currentY + (Math.abs(dx) >= Math.abs(dy) ? 0 : dy > 0 ? 1 : -1);
 
-      const candidate = this.canStand(nextX, nextY) ? { x: nextX, y: nextY } : this.findAdjacentFreeCell(currentX, currentY);
+      const candidate = this.canStand(nextX, nextY)
+        ? { x: nextX, y: nextY }
+        : this.findAdjacentFreeCell(currentX, currentY);
       if (!candidate) break;
       currentX = candidate.x;
       currentY = candidate.y;
       remaining--;
     }
 
+    if (currentX === agent.position.x && currentY === agent.position.y) return null;
     return { x: currentX, y: currentY };
   }
 
@@ -728,49 +556,15 @@ export class ArenaRoom extends Room {
     return true;
   }
 
-  private destroyAdjacentCover(x: number, y: number, source: AgentState) {
-    [...this.state.destructibles]
-      .filter((prop) => prop.hp > 0 && this.distance(prop.position, { x, y }) <= 1)
-      .forEach((prop) => this.destroyDestructible(prop, source));
-  }
-
   private destroyDestructible(prop: DestructibleState, source: AgentState) {
     prop.hp = 0;
-    this.addLog(this.state.turnNumber, source.id, ActionType.ABILITY, prop.id, 0, `💥 ${source.name} destroys ${prop.type} at (${prop.position.x}, ${prop.position.y}).`);
+    this.addLog(this.state.turnNumber, source.id, ActionType.ATTACK, prop.id, 0, `💥 ${source.name} destroys ${prop.type} at (${prop.position.x}, ${prop.position.y}).`);
 
     if (prop.explosive) {
       [...this.state.agents.values()]
         .filter((agent) => agent.isAlive && this.distance(agent.position, prop.position) <= prop.blastRadius)
         .forEach((agent) => this.applyDamage(source, agent, prop.damage, `💥 Explosion rocks ${agent.name}!`));
     }
-  }
-
-  private spawnBarrier(x: number, y: number) {
-    const barrier = new DestructibleState();
-    barrier.id = `barrier-${Date.now()}`;
-    barrier.type = PropType.BARRIER;
-    barrier.position = new Position();
-    barrier.position.x = x;
-    barrier.position.y = y;
-    barrier.hp = 20;
-    barrier.maxHp = 20;
-    barrier.blocksMovement = true;
-    barrier.providesCover = true;
-    barrier.explosive = false;
-    barrier.blastRadius = 0;
-    barrier.damage = 0;
-    this.state.destructibles.push(barrier);
-  }
-
-  private findSecondTargetInLine(attacker: AgentState, primary: AgentState) {
-    const dx = Math.sign(primary.position.x - attacker.position.x);
-    const dy = Math.sign(primary.position.y - attacker.position.y);
-    return [...this.state.agents.values()].find((agent) => {
-      if (!agent.isAlive || agent.id === attacker.id || agent.id === primary.id) return false;
-      const relX = agent.position.x - primary.position.x;
-      const relY = agent.position.y - primary.position.y;
-      return (dx !== 0 && relY === 0 && Math.sign(relX) === dx) || (dy !== 0 && relX === 0 && Math.sign(relY) === dy);
-    });
   }
 
   private applyDamage(source: AgentState, target: AgentState, amount: number, log?: string) {
@@ -852,7 +646,6 @@ export class ArenaRoom extends Room {
       summary.push({
         id: agent.id,
         name: agent.name,
-        archetype: agent.archetype,
         hp: agent.hp,
         maxHp: agent.maxHp,
         temporaryHp: agent.temporaryHp,
