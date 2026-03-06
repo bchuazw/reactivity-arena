@@ -55,18 +55,20 @@ Opens on `http://localhost:5173`
 - Select your wallet and switch to Somnia Testnet
 
 ### 2. Pre-Match Betting (0:15-1:00)
-- View the 5 AI agents with their archetypes:
-  - 🗡️ **Blade Runner** (Vanguard) - Balanced fighter
-  - 🎯 **Hawk Eye** (Sniper) - High damage, fragile
-  - 💚 **Mercy Unit** (Support) - Healer
-  - 🥷 **Shadow** (Assassin) - Fast, deadly
-  - 🛡️ **Iron Wall** (Tank) - High defense
+- View the 5 AI agents with uniform loadouts:
+  - 🤖 **Agent One** — Blue
+  - 🤖 **Agent Two** — Red
+  - 🤖 **Agent Three** — Green
+  - 🤖 **Agent Four** — Purple
+  - 🤖 **Agent Five** — Orange
+  
+  *All agents: 100 HP, 12 ATK, 8 DEF, 5 SPD*
 - Place bets on your favorite agent
 - Watch odds update in real-time as others bet
 
 ### 3. Watch Match (1:00-3:00)
 - AI agents battle in the 3D arena
-- Each turn: agents move, attack, use abilities
+- Each turn: agents move, attack, use items
 - Spectators can see live action in Three.js visualization
 
 ### 4. Live Sponsorship (2:00-3:00)
@@ -98,9 +100,9 @@ Opens on `http://localhost:5173`
 - ✅ **ReactiveMatchTimer** - Cron-based turn advancement
 
 ### AI Agent System
-- 5 distinct archetypes with unique stats
-- Turn-based tactical combat
-- Action points, cover, abilities
+- 5 uniform agents with identical stats
+- Tactical arena with cover, elevation, chests
+- Turn-based combat with items and abilities
 
 ### Web3 Features
 - Wallet connection via RainbowKit

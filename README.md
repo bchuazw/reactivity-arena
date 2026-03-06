@@ -47,13 +47,16 @@ All three contracts deployed and verified on [Somnia Explorer](https://shannon.s
 Colyseus-based real-time game server with:
 
 - **ArenaRoom** — Manages match lifecycle (lobby → active → ended)
-- **5 AI Agent Archetypes:**
-  - 🗡️ **Vanguard** — Balanced fighter (100 HP, 12 ATK, 8 DEF)
-  - 🎯 **Sniper** — High damage, fragile (70 HP, 20 ATK, 4 DEF)
-  - 💚 **Support** — Healer, moderate stats (90 HP, 8 ATK, 6 DEF)
-  - 🥷 **Assassin** — Fast, deadly, glass cannon (65 HP, 18 ATK, 3 DEF)
-  - 🛡️ **Tank** — High HP and defense (150 HP, 7 ATK, 15 DEF)
-- **Turn-based combat system** with move, attack, defend, ability, and skip actions
+- **5 AI Agents** — Uniform loadout, distinguished by color/number:
+  - 🤖 **Agent One** — Blue
+  - 🤖 **Agent Two** — Red  
+  - 🤖 **Agent Three** — Green
+  - 🤖 **Agent Four** — Purple
+  - 🤖 **Agent Five** — Orange
+  
+  *All agents: 100 HP, 12 ATK, 8 DEF, 5 SPD*
+- **Tactical arena map** — Cover, elevation, destructibles, chests with power-ups
+- **Turn-based combat system** with move, attack, defend, and skip actions
 - **Decision engine** for AI agent behavior
 - **Blockchain event listener** for sponsorship delivery
 - TypeScript, compiles cleanly

@@ -231,7 +231,6 @@ export function ArenaScene({ agents, currentAgentId, phase, tiles = [], destruct
               <AgentModel
                 id={agent.id}
                 name={agent.name}
-                archetype={'uniform'}
                 position={agent.position}
                 hp={agent.hp + agent.temporaryHp}
                 maxHp={agent.maxHp + Math.max(agent.temporaryHp, 0)}

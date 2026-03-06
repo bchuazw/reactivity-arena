@@ -3,19 +3,20 @@ import { useFrame } from '@react-three/fiber';
 import { Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 
-// ─── Archetype visual config ─────────────────────────────────────
-const ARCHETYPE_CONFIG: Record<string, { color: string; emoji: string; shape: 'box' | 'cone' | 'sphere' | 'octahedron' | 'cylinder' }> = {
-  vanguard:  { color: '#4488ff', emoji: '🗡️', shape: 'box' },
-  sniper:    { color: '#ff4444', emoji: '🎯', shape: 'cone' },
-  support:   { color: '#44ff88', emoji: '💚', shape: 'sphere' },
-  assassin:  { color: '#aa44ff', emoji: '🥷', shape: 'octahedron' },
-  tank:      { color: '#ffaa44', emoji: '🛡️', shape: 'cylinder' },
+// ─── Agent visual config (by index for uniform agents) ──────────────────
+const AGENT_CONFIG: Record<string, { color: string; emoji: string }> = {
+  'agent-1': { color: '#4488ff', emoji: '🔵' },  // Blue
+  'agent-2': { color: '#ff4444', emoji: '🔴' },  // Red
+  'agent-3': { color: '#44ff88', emoji: '🟢' },  // Green
+  'agent-4': { color: '#aa44ff', emoji: '🟣' },  // Purple
+  'agent-5': { color: '#ffaa44', emoji: '🟠' },  // Orange
 };
+
+const DEFAULT_CONFIG = { color: '#888888', emoji: '⚪' };
 
 interface AgentModelProps {
   id: string;
   name: string;
-  archetype: string;
   position: { x: number; y: number };
   hp: number;
   maxHp: number;
@@ -27,8 +28,8 @@ interface AgentModelProps {
 }
 
 export function AgentModel({
+  id,
   name,
-  archetype,
   position,
   hp,
   maxHp,
@@ -39,7 +40,7 @@ export function AgentModel({
   damageBoostTurns,
 }: AgentModelProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const config = ARCHETYPE_CONFIG[archetype] || ARCHETYPE_CONFIG.vanguard;
+  const config = AGENT_CONFIG[id] || DEFAULT_CONFIG;
   const hpPercent = maxHp > 0 ? hp / maxHp : 0;
 
   // Animate: pulse when it's this agent's turn, bob up and down
@@ -71,13 +72,9 @@ export function AgentModel({
 
   return (
     <group position={[worldX, 0, worldZ]}>
-      {/* Main body */}
+      {/* Main body - uniform capsule shape for all agents */}
       <mesh ref={meshRef} castShadow>
-        {config.shape === 'box' && <boxGeometry args={[0.5, 0.7, 0.5]} />}
-        {config.shape === 'cone' && <coneGeometry args={[0.3, 0.8, 6]} />}
-        {config.shape === 'sphere' && <sphereGeometry args={[0.35, 16, 16]} />}
-        {config.shape === 'octahedron' && <octahedronGeometry args={[0.35]} />}
-        {config.shape === 'cylinder' && <cylinderGeometry args={[0.35, 0.35, 0.6, 8]} />}
+        <capsuleGeometry args={[0.3, 0.6, 4, 8]} />
         <meshStandardMaterial
           color={isAlive ? baseColor : deadColor}
           emissive={isCurrentTurn ? baseColor : damageBoostTurns > 0 ? new THREE.Color('#ff8800') : new THREE.Color('#000000')}
