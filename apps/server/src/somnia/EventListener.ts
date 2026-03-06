@@ -1,8 +1,5 @@
 import { ethers } from "ethers";
 import { EventEmitter } from "events";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 // ─── Contract ABIs (event signatures only) ───────────────────────
 

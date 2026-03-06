@@ -3,6 +3,7 @@ console.log("[Boot] Process starting...");
 console.log("[Boot] Node version:", process.version);
 console.log("[Boot] Platform:", process.platform, process.arch);
 console.log("[Boot] PORT:", process.env.PORT);
+console.log("[Boot] NODE_ENV:", process.env.NODE_ENV);
 
 import { Server, WebSocketTransport, matchMaker } from "colyseus";
 import { createServer } from "http";
@@ -17,9 +18,11 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 // Catch unhandled errors to prevent silent crashes
 process.on("uncaughtException", (err) => {
   console.error("[FATAL] Uncaught exception:", err);
+  // Don't exit — keep the server alive
 });
 process.on("unhandledRejection", (reason) => {
   console.error("[FATAL] Unhandled rejection:", reason);
+  // Don't exit — keep the server alive
 });
 
 async function main() {
@@ -27,7 +30,7 @@ async function main() {
   const app = express();
   app.use(express.json());
 
-  // Health check endpoint
+  // Health check endpoint — must respond quickly for Render
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", uptime: process.uptime() });
   });
